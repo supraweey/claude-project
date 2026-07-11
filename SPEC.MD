@@ -124,7 +124,25 @@ Users can toggle note "public sharing":
 
 #### better-auth Core Tables
 
-better-auth manages its own tables for authentication. The following tables are required by better-auth:
+better-auth manages its own tables for authentication. The four tables below (`user`, `session`, `account`, `verification`) are the core schema required by better-auth.
+
+> **Note:** You do **not** need to hand-write or maintain these tables. better-auth ships a CLI that generates and migrates the schema for you against the configured database adapter:
+>
+> ```bash
+> # Generate the SQL schema (Kysely/SQLite adapter emits a .sql file)
+> bunx @better-auth/cli generate
+>
+> # Or apply migrations directly (built-in Kysely adapter only)
+> bunx @better-auth/cli migrate
+> ```
+>
+> Because this project uses raw Bun SQLite (not Kysely/Drizzle/Prisma), run `generate` and execute the emitted SQL as part of DB initialization (see [§12](#12-development-workflow)). The DDL below documents the **expected** result so the rest of the app can rely on it. Keep the following conventions, which better-auth assumes by default:
+>
+> - Table and column names are **camelCase** (`emailVerified`, `userId`, `expiresAt`, …) — do not rename them to snake_case.
+> - `id` columns are `TEXT` primary keys (better-auth generates string IDs by default).
+> - Boolean fields (`emailVerified`) are stored as `INTEGER` (`0`/`1`) in SQLite.
+> - `Date` fields (`createdAt`, `updatedAt`, `expiresAt`, …) are stored as ISO-8601 `TEXT` and written by better-auth at the application layer.
+> - Foreign keys to `user(id)` are declared `ON DELETE CASCADE`, so deleting a user removes their sessions and accounts.
 
 **user**
 
@@ -162,7 +180,7 @@ CREATE TABLE session (
   userAgent TEXT,
   createdAt TEXT NOT NULL DEFAULT (datetime('now')),
   updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (userId) REFERENCES user(id)
+  FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
 );
 ```
 
@@ -194,7 +212,7 @@ CREATE TABLE account (
   password TEXT,
   createdAt TEXT NOT NULL DEFAULT (datetime('now')),
   updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (userId) REFERENCES user(id)
+  FOREIGN KEY (userId) REFERENCES user(id) ON DELETE CASCADE
 );
 ```
 
